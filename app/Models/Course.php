@@ -3,14 +3,24 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
-use Spatie\ModelStates\HasStates; // Importante
-use App\States\ProposalState;    // Importante
+use Spatie\ModelStates\HasStates;
+use App\States\ProposalState;
 
 class Course extends Model
 {
-    use HasStates; // Habilita o suporte a estados no modelo [1]
+    use HasStates;
+
+    // Adicione isso aqui:
+    protected $fillable = [
+        'nome',
+        'carga_horaria_total',
+        'quantidade_semestres',
+        'justificativa',
+        'impacto_social',
+        // 'status' não precisa estar aqui, o pacote de estados cuida dele sozinho
+    ];
 
     protected $casts = [
-        'status' => ProposalState::class, // Transforma a string do banco em objeto de estado [2, 3]
+        'status' => ProposalState::class,
     ];
 }
