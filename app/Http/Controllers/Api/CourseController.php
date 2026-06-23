@@ -14,20 +14,18 @@ use Spatie\ModelStates\Exceptions\TransitionNotFound;
 
 class CourseController extends Controller
 {
-    /**
-     * Exibe uma lista de todas as propostas de cursos.
-     */
     public function index()
     {
         return response()->json(Course::with('subjects')->get());
     }
 
-    /**
-     * Armazena uma nova proposta de curso e sua grade curricular.
-     */
     public function store(Request $request)
     {
-        // Validação rigorosa dos dados
+        // Regra: Apenas 'unidade' pode submeter propostas
+        if ($request->user()->role !== 'unidade') {
+            return response()->json(['message' => 'Acesso negado. Apenas Unidades podem submeter propostas.'], 403);
+        }
+
         $validated = $request->validate([
             'nome' => 'required|string|max:255',
             'carga_horaria_total' => 'required|integer|min:1',
@@ -37,12 +35,11 @@ class CourseController extends Controller
             'disciplinas' => 'required|array|min:1',
             'disciplinas.*.nome' => 'required|string|max:255',
             'disciplinas.*.carga_horaria' => 'required|integer|min:1',
-            'disciplinas.*.semestre' => 'required|integer|min:1|max:10', // Adicionado limite conforme documentação
+            'disciplinas.*.semestre' => 'required|integer|min:1|max:10',
         ]);
 
         try {
             return DB::transaction(function () use ($validated) {
-                // Cria o curso (o estado inicial é definido pelo boot do modelo)
                 $course = Course::create([
                     'nome' => $validated['nome'],
                     'carga_horaria_total' => $validated['carga_horaria_total'],
@@ -52,44 +49,26 @@ class CourseController extends Controller
                 ]);
 
                 foreach ($validated['disciplinas'] as $disciplinaData) {
-                    $course->subjects()->create([
-                        'nome' => $disciplinaData['nome'],
-                        'carga_horaria' => $disciplinaData['carga_horaria'],
-                        'semestre' => $disciplinaData['semestre'],
-                    ]);
+                    $course->subjects()->create($disciplinaData);
                 }
 
-                return response()->json([
-                    'message' => 'Proposta de curso e grade curricular submetidas com sucesso.',
-                    'data' => $course->load('subjects')
-                ], 201);
+                return response()->json(['message' => 'Proposta submetida com sucesso.', 'data' => $course->load('subjects')], 201);
             });
-
         } catch (\Exception $e) {
-            Log::error("Falha na submissão do PPC: " . $e->getMessage());
-            return response()->json([
-                'message' => 'Ocorreu um erro ao processar sua solicitação.',
-                'error' => $e->getMessage()
-            ], 500);
+            return response()->json(['message' => 'Erro ao submeter.', 'error' => $e->getMessage()], 500);
         }
     }
 
-    /**
-     * Exibe os detalhes de uma proposta específica.
-     */
     public function show(Course $course)
     {
         return response()->json($course->load('subjects'));
     }
 
-    /**
-     * Atualiza o status da proposta (Fluxo de aprovação).
-     */
     public function update(Request $request, Course $course)
     {
+        $user = $request->user();
         $request->validate(['status' => 'required|string']);
 
-        // Mapeamento das strings vindas do frontend para as classes de Estado
         $map = [
             'em-avaliacao' => UnderReview::class,
             'recomendacao-ajuste' => AdjustmentRecommended::class,
@@ -99,34 +78,37 @@ class CourseController extends Controller
         $newStatus = $map[$request->status] ?? null;
 
         if (!$newStatus) {
-            return response()->json(['message' => 'Status informado é inválido.'], 422);
+            return response()->json(['message' => 'Status inválido.'], 422);
+        }
+
+        // Regras de Autorização de Status
+        // 1. Avaliador pode colocar em 'recomendacao-ajuste' (enviar de volta para unidade)
+        // 2. Câmara de Ensino pode colocar em 'decisao-final' (aprovar ou reprovar)
+
+        if ($request->status === 'recomendacao-ajuste' && $user->role !== 'avaliador') {
+            return response()->json(['message' => 'Apenas avaliadores podem recomendar ajustes.'], 403);
+        }
+
+        if ($request->status === 'decisao-final' && $user->role !== 'camera_ensino') {
+            return response()->json(['message' => 'Apenas a Câmara de Ensino pode dar a decisão final.'], 403);
         }
 
         try {
-            // Executa a transição validada pela classe StateConfig
             $course->status->transitionTo($newStatus);
-
-            return response()->json([
-                'message' => 'Status atualizado com sucesso.',
-                'status' => $course->status
-            ]);
-
+            return response()->json(['message' => 'Status atualizado com sucesso.', 'status' => $course->status]);
         } catch (TransitionNotFound $e) {
-            return response()->json([
-                'message' => 'Esta transição de status não é permitida pelo fluxo de aprovação.'
-            ], 422);
-        } catch (\Exception $e) {
-            return response()->json([
-                'message' => 'Erro ao processar transição: ' . $e->getMessage()
-            ], 500);
+            return response()->json(['message' => 'Transição não permitida.'], 422);
         }
     }
 
-    /**
-     * Remove a proposta de curso.
-     */
     public function destroy(Course $course)
     {
+        // Regra: Apenas a própria 'unidade' deveria deletar, ou admin.
+        // Para simplificar, deixamos como 'unidade'.
+        if ($request->user()->role !== 'unidade') {
+            return response()->json(['message' => 'Acesso negado.'], 403);
+        }
+
         $course->delete();
         return response()->json(['message' => 'Proposta removida com sucesso.']);
     }

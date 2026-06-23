@@ -2,7 +2,8 @@
 
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
-use App\Http\Controllers\Api\CourseController; // Importação necessária
+use App\Http\Controllers\Api\CourseController;
+use App\Http\Controllers\AuthController; // Importando o AuthController para o login
 
 /*
 |--------------------------------------------------------------------------
@@ -10,11 +11,19 @@ use App\Http\Controllers\Api\CourseController; // Importação necessária
 |--------------------------------------------------------------------------
 */
 
-// Rota padrão do Sanctum para recuperar o usuário autenticado
-Route::get('/user', function (Request $request) {
-    return $request->user();
-})->middleware('auth:sanctum');
+// Rota pública: Ninguém precisa estar logado para fazer o login
+Route::post('/login', [AuthController::class, 'login']);
 
-// Registra todas as rotas de API para o CourseController (index, store, show, update, destroy)
-// O prefixo automático será /api/courses
-Route::apiResource('courses', CourseController::class);
+// Rotas protegidas: Precisa enviar o Token Bearer (Auth: Sanctum)
+Route::middleware('auth:sanctum')->group(function () {
+
+    // Rota para recuperar dados do usuário logado
+    Route::get('/user', function (Request $request) {
+        return $request->user();
+    });
+
+    // Agora o CourseController está protegido pelo middleware
+    // Apenas quem estiver logado (enviar o token) conseguirá listar, criar ou editar cursos
+    Route::apiResource('courses', CourseController::class);
+
+});
