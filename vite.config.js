@@ -19,6 +19,12 @@ export default defineConfig({
         }),
         tailwindcss(),
     ],
+    // Adicionamos esta parte para garantir que o Vue compile corretamente
+    resolve: {
+        alias: {
+            vue: 'vue/dist/vue.esm-bundler.js',
+        },
+    },
     server: {
         watch: {
             ignored: ['**/storage/framework/views/**'],
