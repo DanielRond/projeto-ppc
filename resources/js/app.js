@@ -1,11 +1,13 @@
 import './bootstrap';
 import { createApp } from 'vue';
 import Login from './components/Login.vue';
+import CourseList from './components/CourseList.vue';
 
 const app = createApp({});
 
-// Registra o componente para ser usado no seu blade
+// 1. Registre todos os seus componentes ANTES de montar
 app.component('login-component', Login);
+app.component('course-list', CourseList);
 
-// Monta a aplicação no elemento <div id="app"> do seu blade
+// 2. Monte a aplicação (Sempre deve ser a última instrução)
 app.mount('#app');
