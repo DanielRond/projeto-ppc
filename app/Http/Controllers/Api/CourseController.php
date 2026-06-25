@@ -101,10 +101,8 @@ class CourseController extends Controller
         }
     }
 
-    public function destroy(Course $course)
+    public function destroy(Request $request, Course $course) // Adicione o Request aqui
     {
-        // Regra: Apenas a própria 'unidade' deveria deletar, ou admin.
-        // Para simplificar, deixamos como 'unidade'.
         if ($request->user()->role !== 'unidade') {
             return response()->json(['message' => 'Acesso negado.'], 403);
         }
