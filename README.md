@@ -1,5 +1,5 @@
 # Sistema de Plano Pedagogico de Curso (PPC)
-
+### Desenvolvido por Daniel Rond de Jesus dos Santos
 Este projeto e um prototipo funcional de um sistema para coordenacao e supervisao da criacao e avaliacao de cursos de graduacao, desenvolvido como parte do desafio pratico para o processo seletivo de estagio da ASTTIC/PROEG. O sistema permite que unidades academicas submetam propostas de cursos e grades curriculares, que passam por um fluxo de aprovacao tecnica ate a decisao final pela Camara de Ensino.
 
 ## Tecnologias Utilizadas
@@ -79,3 +79,4 @@ Siga os passos abaixo para configurar o ambiente local:
       ```
 
 Acesse a aplicacao atraves do endereco indicado pelo comando `php artisan serve` (geralmente http://127.0.0.1:8000).
+
