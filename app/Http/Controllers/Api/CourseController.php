@@ -66,39 +66,43 @@ class CourseController extends Controller
 
     public function update(Request $request, Course $course)
     {
-        $user = $request->user();
-        $request->validate(['status' => 'required|string']);
+        // 1. Atualiza dados básicos
+        $course->update($request->only([
+            'nome', 'carga_horaria_total', 'quantidade_semestres', 'justificativa', 'impacto_social'
+        ]));
 
-        $map = [
-            'em-avaliacao' => UnderReview::class,
-            'recomendacao-ajuste' => AdjustmentRecommended::class,
-            'decisao-final' => FinalDecision::class,
-        ];
+        // 2. Lógica de Status apenas se for diferente do atual
+        if ($request->has('status')) {
+            $map = [
+                'em-avaliacao' => UnderReview::class,
+                'recomendacao-ajuste' => AdjustmentRecommended::class,
+                'decisao-final' => FinalDecision::class,
+            ];
 
-        $newStatus = $map[$request->status] ?? null;
+            // Se o status enviado for igual ao status atual do banco, nem tentamos transitar
+            // (Isso evita o erro de "transição não permitida" ao salvar sem mudar status)
+            if (isset($map[$request->status]) && $map[$request->status] !== get_class($course->status)) {
 
-        if (!$newStatus) {
-            return response()->json(['message' => 'Status inválido.'], 422);
+                $newStatus = $map[$request->status];
+
+                // Validações de permissão
+                $user = $request->user();
+                if ($request->status === 'recomendacao-ajuste' && $user->role !== 'avaliador') {
+                    return response()->json(['message' => 'Apenas avaliadores podem recomendar ajustes.'], 403);
+                }
+                if ($request->status === 'decisao-final' && $user->role !== 'camera_ensino') {
+                    return response()->json(['message' => 'Apenas a Câmara de Ensino pode dar a decisão final.'], 403);
+                }
+
+                try {
+                    $course->status->transitionTo($newStatus);
+                } catch (TransitionNotFound $e) {
+                    return response()->json(['message' => 'Transição de status não permitida.'], 422);
+                }
+            }
         }
 
-        // Regras de Autorização de Status
-        // 1. Avaliador pode colocar em 'recomendacao-ajuste' (enviar de volta para unidade)
-        // 2. Câmara de Ensino pode colocar em 'decisao-final' (aprovar ou reprovar)
-
-        if ($request->status === 'recomendacao-ajuste' && $user->role !== 'avaliador') {
-            return response()->json(['message' => 'Apenas avaliadores podem recomendar ajustes.'], 403);
-        }
-
-        if ($request->status === 'decisao-final' && $user->role !== 'camera_ensino') {
-            return response()->json(['message' => 'Apenas a Câmara de Ensino pode dar a decisão final.'], 403);
-        }
-
-        try {
-            $course->status->transitionTo($newStatus);
-            return response()->json(['message' => 'Status atualizado com sucesso.', 'status' => $course->status]);
-        } catch (TransitionNotFound $e) {
-            return response()->json(['message' => 'Transição não permitida.'], 422);
-        }
+        return response()->json(['message' => 'Curso atualizado com sucesso.', 'data' => $course]);
     }
 
     public function destroy(Request $request, Course $course) // Adicione o Request aqui

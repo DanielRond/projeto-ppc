@@ -17,17 +17,10 @@
         </button>
     </div>
 
-    <course-create @course-created="recarregarPagina"></course-create>
+    <course-create @course-created="window.location.reload()"></course-create>
 
     <course-list></course-list>
 
 </div>
-
-<script>
-    function recarregarPagina() {
-        window.location.reload();
-    }
-</script>
-
 </body>
 </html>

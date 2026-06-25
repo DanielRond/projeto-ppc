@@ -1,28 +1,49 @@
 <script setup>
 import { ref, onMounted } from 'vue';
 import api from '../api';
+import CourseEditModal from './CourseEditModal.vue';
 
 const courses = ref([]);
 const loading = ref(true);
 const error = ref(null);
 
+// Estados para controle do Modal de Edição
+const isModalOpen = ref(false);
+const selectedCourseId = ref(null);
+
 const fetchCourses = async () => {
     loading.value = true;
-    error.value = null; // Limpa erros anteriores
+    error.value = null;
     try {
-        console.log("Buscando cursos em: /courses");
         const response = await api.get('/courses');
-        console.log("Dados recebidos:", response.data);
         courses.value = response.data;
     } catch (e) {
-        console.error("Erro capturado:", e);
-        if (e.response && e.response.status === 401) {
-            error.value = 'Sessão expirada. Faça login novamente.';
-        } else {
-            error.value = 'Não foi possível carregar os cursos. Verifique o console.';
-        }
+        error.value = 'Não foi possível carregar os cursos.';
+        console.error(e);
     } finally {
         loading.value = false;
+    }
+};
+
+// Lógica para abrir o modal
+const openEditModal = (id) => {
+    selectedCourseId.value = id;
+    isModalOpen.value = true;
+};
+
+// Lógica para Excluir
+const deleteCourse = async (id) => {
+    if (!confirm('Tem certeza que deseja excluir esta proposta? Esta ação não pode ser desfeita.')) {
+        return;
+    }
+
+    try {
+        await api.delete(`/courses/${id}`);
+        alert('Curso excluído com sucesso!');
+        fetchCourses();
+    } catch (e) {
+        console.error(e);
+        alert('Erro ao excluir o curso.');
     }
 };
 
@@ -60,8 +81,17 @@ onMounted(fetchCourses);
                             {{ course.status }}
                         </span>
                     </td>
-                    <td class="px-6 py-4">
-                        <button class="text-indigo-600 hover:text-indigo-900 font-medium">Ver Detalhes</button>
+                    <td class="px-6 py-4 flex gap-2">
+                        <button
+                            @click="openEditModal(course.id)"
+                            class="text-blue-600 hover:text-blue-900 font-medium">
+                            Editar
+                        </button>
+                        <button
+                            @click="deleteCourse(course.id)"
+                            class="text-red-600 hover:text-red-900 font-medium">
+                            Excluir
+                        </button>
                     </td>
                 </tr>
                 </tbody>
@@ -71,5 +101,12 @@ onMounted(fetchCourses);
                 Nenhuma proposta encontrada.
             </div>
         </div>
+
+        <CourseEditModal
+            v-if="isModalOpen"
+            :course-id="selectedCourseId"
+            @close="isModalOpen = false"
+            @updated="fetchCourses"
+        />
     </div>
 </template>
