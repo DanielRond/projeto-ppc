@@ -40,7 +40,7 @@ Siga os passos abaixo para configurar o ambiente local:
 1.  **Clonar o repositorio:**
     ```bash
     git clone https://github.com/DanielRond/projeto-ppc.git
-    cd projeto-ppc/laravel
+    cd projeto-ppc
     ```
 
 2.  **Instalar dependencias do PHP:**
